@@ -10,7 +10,6 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
 
-    
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
@@ -21,12 +20,39 @@ jobs:
           VERSION=$(jq -r '.version' package.json)
           echo "VERSION=${VERSION}" >> $GITHUB_ENV
 
+      - name: Get release ID
+        id: get_release_id
+        run: |
+          REPO="ddicior/next-channel-lib"
+          TAG="v${{ env.VERSION }}"
+          TOKEN="${{ secrets.PAT }}"
+          RELEASE_ID=$(curl -s -H "Authorization: token ${TOKEN}" \
+            "https://api.github.com/repos/${REPO}/releases/tags/${TAG}" | jq -r '.id')
+          echo "RELEASE_ID=${RELEASE_ID}" >> $GITHUB_ENV
+
+      - name: Get asset ID
+        id: get_asset_id
+        run: |
+          REPO="ddicior/next-channel-lib"
+          FILE="next-channel-lib-${{ env.VERSION }}.tar.gz"
+          TOKEN="${{ secrets.PAT }}"
+          ASSET_ID=$(curl -s -H "Authorization: token ${TOKEN}" \
+            "https://api.github.com/repos/${REPO}/releases/${{ env.RELEASE_ID }}/assets" | jq -r ".[] | select(.name == \"${FILE}\") | .id")
+          echo "ASSET_ID=${ASSET_ID}" >> $GITHUB_ENV
+
       - name: Download Release Asset
         run: |
-          curl -H "Authorization: token ${{ secrets.PAT }}" \
-          -L "https://github.com/ddicior/next-channel-lib/releases/download/v${{ env.VERSION }}/next-channel-lib-${{ env.VERSION }}.tar.gz" \
-          -o next-channel-lib-${{ env.VERSION }}.tar.gz
-          ls -l  # 디버그 출력을 추가하여 파일이 생성되었는지 확인
+          REPO="ddicior/next-channel-lib"
+          FILE="next-channel-lib-${{ env.VERSION }}.tar.gz"
+          TOKEN="${{ secrets.PAT }}"
+          DOWNLOAD_URL="https://api.github.com/repos/${REPO}/releases/assets/${{ env.ASSET_ID }}"
+          curl -H "Authorization: token ${TOKEN}" \
+               -H "Accept: application/octet-stream" \
+               -L "${DOWNLOAD_URL}" \
+               -o "${FILE}"
+
+      - name: List Downloaded Files
+        run: ls -lh next-channel-lib-${{ env.VERSION }}.tar.gz
 
       - name: Extract Release Asset
         run: tar -xzvf next-channel-lib-${{ env.VERSION }}.tar.gz
