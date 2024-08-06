@@ -1,0 +1,36 @@
+name: Download and Deploy Release from Private Repo
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Get version from package.json
+        id: get_version
+        run: |
+          VERSION=$(jq -r '.version' package.json)
+          echo "VERSION=${VERSION}" >> $GITHUB_ENV
+
+      - name: Download Release Asset
+        run: |
+          curl -H "Authorization: token ${{ secrets.PAT }}" \
+          -L "https://github.com/ddicior/next-channel-lib/releases/download/v${{ env.VERSION }}/next-channel-lib-${{ env.VERSION }}.tar.gz" \
+          -o next-channel-lib-${{ env.VERSION }}.tar.gz
+
+      - name: Extract Release Asset
+        run: tar -xzvf next-channel-lib-${{ env.VERSION }}.tar.gz
+
+      - name: Deploy Artifact
+        run: |
+          # 다운로드된 파일을 public 저장소에 배포하는 로직을 작성합니다.
+          # 예: 특정 폴더로 복사하거나 배포 스크립트 실행
+          cp -R ./next-channel-lib/* ./path/to/deploy
